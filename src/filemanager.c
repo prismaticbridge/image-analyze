@@ -35,7 +35,9 @@ static int has_image_extension(const char *name) {
 
     return !strcasecmp(ext, ".png") ||
            !strcasecmp(ext, ".jpg") ||
-           !strcasecmp(ext, ".jpeg");
+           !strcasecmp(ext, ".jpeg") ||
+           !strcasecmp(ext, ".heic") ||
+           !strcasecmp(ext, ".heif");
 }
 
 int find_latest_screenshot(char *buffer, const char *directory) {

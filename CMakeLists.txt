@@ -22,10 +22,18 @@ find_package(glfw3 REQUIRED)
 # pain since its meson instead of cmake on arch linux
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SPNG REQUIRED IMPORTED_TARGET spng)
+# search for either libturbojpeg or turbojpeg since some distros package it as one or the other
 pkg_search_module(TURBOJPEG REQUIRED IMPORTED_TARGET libturbojpeg turbojpeg)
+pkg_check_modules(HEIF IMPORTED_TARGET libheif)
+
 file(GLOB SOURCES src/*.c)
 add_executable(image-analyze ${SOURCES})
 target_include_directories(image-analyze PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(image-analyze PRIVATE OpenGL::GL glad glfw PkgConfig::SPNG PkgConfig::TURBOJPEG dl m)
+
+if (HEIF_FOUND)
+  target_compile_definitions(image-analyze PRIVATE HAVE_LIBHEIF)
+  target_link_libraries(image-analyze PRIVATE PkgConfig::HEIF)
+endif()
 
 install(TARGETS image-analyze DESTINATION bin)

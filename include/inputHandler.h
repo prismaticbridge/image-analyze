@@ -3,9 +3,9 @@
 
 typedef struct {
     Renderer* renderer;
-    float mouseX;
-    float mouseY;
-} userPointer;
+    float mouse_x;
+    float mouse_y;
+} user_pointer;
 
 void init_input(Renderer* renderer);
 void update_coords(Renderer* renderer);

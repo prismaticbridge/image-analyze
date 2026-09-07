@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   render(&renderer);
   while (!glfwWindowShouldClose(renderer.window)) {
     glfwWaitEvents();
-    if (renderer.stateChanged) {
+    if (renderer.state_changed) {
       update_coords(&renderer);
       render(&renderer);
     }

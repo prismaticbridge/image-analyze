@@ -23,24 +23,27 @@ Renderer init_renderer(const char *path) {
   // spinwait for image width and height to be known
   while (out.width == 0 || out.height == 0) {
   }
-  window_width = out.width;
-  window_height = out.height;
-  printf("Detected image dimensions (%d, %d)\n", window_width, window_height);
+  uint32_t image_width = out.width;
+  uint32_t image_height = out.height;
+
+  window_width = image_width;
+  window_height = image_height;
+  printf("Detected image dimensions (%d, %d)\n", image_width, image_height);
 
   GLFWwindow *window = create_window(false);
   init_glad();
 
-  Renderer renderer = {window,
-                       0,
-                       0,
-                       1.0f,
-                       0.0f,
-                       0.0f,
-                       window_width,
-                       window_height,
-                       {0, 0, window_width, window_height},
-                       {0, 0, window_width, window_height},
-                       false};
+  Renderer renderer = {.window = window,
+                       .texture_id = 0,
+                       .framebuffer_id = 0,
+                       .zoom_factor = 1.0f,
+                       .x_offset = 0.0f,
+                       .y_offset = 0.0f,
+                       .image_width = image_width,
+                       .image_height = image_height,
+                       .screen_coords = {0, 0, window_width, window_height},
+                       .fb_coords = {0, 0, image_width, image_height},
+                       .state_changed = false};
 
   unsigned char *data;
   pthread_join(img_load_thread, (void **)&data);
@@ -50,15 +53,15 @@ Renderer init_renderer(const char *path) {
     exit(1);
   }
 
-  renderer.textureId = load_texture_framebuffer(
-      (void *)out.output_buffer, &(renderer.framebufferId), window_width,
-      window_height, out.gl_format);
-  if (!(renderer.textureId)) {
+  renderer.texture_id = load_texture_framebuffer(
+      (void *)out.output_buffer, &(renderer.framebuffer_id), image_width,
+      image_height, out.gl_format);
+  if (!(renderer.texture_id)) {
     fprintf(stderr, "Error: Loading the OpenGL texture failed!\n");
     exit(2);
   }
 
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.framebufferId);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.framebuffer_id);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
   return renderer;
@@ -68,10 +71,10 @@ void render(Renderer *renderer) {
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glBlitFramebuffer(renderer->fbCoords[0], renderer->fbCoords[1],
-                    renderer->fbCoords[2], renderer->fbCoords[3],
-                    renderer->screenCoords[0], renderer->screenCoords[1],
-                    renderer->screenCoords[2], renderer->screenCoords[3],
+  glBlitFramebuffer(renderer->fb_coords[0], renderer->fb_coords[1],
+                    renderer->fb_coords[2], renderer->fb_coords[3],
+                    renderer->screen_coords[0], renderer->screen_coords[1],
+                    renderer->screen_coords[2], renderer->screen_coords[3],
                     GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
   glfwSwapBuffers(renderer->window);
