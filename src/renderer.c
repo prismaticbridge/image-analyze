@@ -68,8 +68,8 @@ void render(Renderer *renderer) {
   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  glBlitFramebuffer(renderer->fbCoords[0], renderer->fbCoords[3],
-                    renderer->fbCoords[2], renderer->fbCoords[1],
+  glBlitFramebuffer(renderer->fbCoords[0], renderer->fbCoords[1],
+                    renderer->fbCoords[2], renderer->fbCoords[3],
                     renderer->screenCoords[0], renderer->screenCoords[1],
                     renderer->screenCoords[2], renderer->screenCoords[3],
                     GL_COLOR_BUFFER_BIT, GL_LINEAR);

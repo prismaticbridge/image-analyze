@@ -23,9 +23,11 @@ void calculate_framebuffer_coords(uint32_t write_framebuffer_coords[4],
                                   int32_t framebuffer_height,
                                   float zoom_factor) {
   write_framebuffer_coords[0] = max(0.0f, -x_offset / zoom_factor);
-  write_framebuffer_coords[1] = max(0.0f, -y_offset / zoom_factor);
+  write_framebuffer_coords[1] =
+      framebuffer_height - max(0.0f, -y_offset / zoom_factor);
   write_framebuffer_coords[2] =
       min((float)framebuffer_width, (window_width - x_offset) / zoom_factor);
   write_framebuffer_coords[3] =
+      framebuffer_height -
       min((float)framebuffer_height, (window_height - y_offset) / zoom_factor);
 }
