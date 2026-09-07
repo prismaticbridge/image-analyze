@@ -1,4 +1,5 @@
 #include <decoders.h>
+#include <libheif/heif_image.h>
 #include <spng.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +25,20 @@ GLenum spng_to_gl_format(uint8_t spng_format) {
     return GL_RGBA16;
   default:
     return 0;
+  }
+}
+
+void print_gl_format_info(GLenum gl_format) {
+  switch (gl_format) {
+  case GL_RGB8:
+    printf("Detected RGB (no alpha channel), assuming 8 bit depth\n");
+    break;
+  case GL_RGBA8:
+    printf("Detected RGBA with 8 bit depth\n");
+    break;
+  case GL_RGBA16:
+    printf("Detected RGBA with >8 bit depth, using 16 bits");
+    break;
   }
 }
 
@@ -55,8 +70,10 @@ void *decode_spng(FILE *fp, OutputBuffer *out) {
   }
 
   spng_decode_image(ctx, out->output_buffer, output_size, format, 0);
+  fclose(fp);
 
   out->gl_format = spng_to_gl_format(format);
+  print_gl_format_info(out->gl_format);
   spng_ctx_free(ctx);
   return out;
 }
@@ -88,10 +105,11 @@ void *decode_jpeg(FILE *fp, OutputBuffer *out) {
   }
 
   tjDecompress2(tj, jpeg_buf, (unsigned long)jpeg_size,
-                (unsigned char *)out->output_buffer, width, 0, height,
-                TJPF_RGB, 0);
+                (unsigned char *)out->output_buffer, width, 0, height, TJPF_RGB,
+                0);
 
   out->gl_format = GL_RGB8;
+  print_gl_format_info(out->gl_format);
   out->type = IMAGE_JPEG;
   tjDestroy(tj);
   free(jpeg_buf);
@@ -128,16 +146,6 @@ void *decode_heif(FILE *fp, OutputBuffer *out) {
   int channels = has_alpha ? 4 : 3;
   enum heif_chroma chroma =
       has_alpha ? heif_chroma_interleaved_RGBA : heif_chroma_interleaved_RGB;
-  GLenum gl_format = has_alpha ? GL_RGBA8 : GL_RGB8;
-
-  size_t output_size = (size_t)width * height * channels;
-  if (out->output_buffer == NULL) {
-    out->output_buffer = malloc(output_size);
-    out->output_buffer_size = output_size;
-  } else if (out->output_buffer_size < output_size) {
-    out->output_buffer = realloc(out->output_buffer, output_size);
-    out->output_buffer_size = output_size;
-  }
 
   heif_image *image = NULL;
   err = heif_decode_image(handle, &image, heif_colorspace_RGB, chroma, NULL);
@@ -152,19 +160,43 @@ void *decode_heif(FILE *fp, OutputBuffer *out) {
   const uint8_t *data =
       heif_image_get_plane_readonly(image, heif_channel_interleaved, &stride);
 
+  const size_t output_size = (size_t)width * height * channels;
+
   if (stride == width * channels) {
-    memcpy(out->output_buffer, data, output_size);
+    // memcpy(out->output_buffer, data, output_size);
+    out->output_buffer = (char *)data;
+    out->output_buffer_size = output_size;
   } else {
+    if (out->output_buffer == NULL) {
+      out->output_buffer = malloc(output_size);
+      out->output_buffer_size = output_size;
+    } else if (out->output_buffer_size < output_size) {
+      out->output_buffer = realloc(out->output_buffer, output_size);
+      out->output_buffer_size = output_size;
+    }
     for (int y = 0; y < height; y++) {
       memcpy((char *)out->output_buffer + (size_t)y * width * channels,
              data + (size_t)y * stride, (size_t)width * channels);
     }
   }
 
+  GLenum gl_format;
+  if (has_alpha) {
+    int bit_depth =
+        heif_image_get_bits_per_pixel_range(image, heif_channel_interleaved);
+    if (bit_depth > 8) {
+      gl_format = GL_RGBA16;
+    } else {
+      gl_format = GL_RGBA8;
+    }
+  } else {
+    gl_format = GL_RGB8;
+  }
+  print_gl_format_info(gl_format);
   out->gl_format = gl_format;
   out->type = IMAGE_HEIC;
 
-  heif_image_release(image);
+  // heif_image_release(image);
   heif_image_handle_release(handle);
   heif_context_free(ctx);
   free(buf);
@@ -188,7 +220,8 @@ void *load_image_thread(void *arg_ptr) {
   rewind(fp);
 
   ImageType type = IMAGE_UNKNOWN;
-  if (bytes_read >= 8 && !memcmp((void *)png_bytes, (void *)header, (size_t)8)) {
+  if (bytes_read >= 8 &&
+      !memcmp((void *)png_bytes, (void *)header, (size_t)8)) {
     type = IMAGE_PNG;
     printf("Detected png\n");
   } else if (bytes_read >= 3 &&
@@ -214,7 +247,8 @@ void *load_image_thread(void *arg_ptr) {
     return decode_heif(fp, args->out);
 #else
     fclose(fp);
-    fprintf(stderr, "Error: To decode HEIF/HEIC images, please install libheif and then rebuild/reinstall this package.\n");
+    fprintf(stderr, "Error: To decode HEIF/HEIC images, please install libheif "
+                    "and then rebuild/reinstall this package.\n");
     return NULL;
 #endif
   default:
