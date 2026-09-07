@@ -7,5 +7,5 @@ typedef struct {
     float mouseY;
 } userPointer;
 
-void initInput(Renderer* renderer);
-void updateCoords(Renderer* renderer);
+void init_input(Renderer* renderer);
+void update_coords(Renderer* renderer);

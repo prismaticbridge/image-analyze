@@ -14,5 +14,5 @@ typedef struct {
     uint32_t fbCoords[4];
     bool stateChanged;
 } Renderer;
-Renderer initRenderer(const char* path);
+Renderer init_renderer(const char* path);
 void render(Renderer* renderer);

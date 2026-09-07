@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-void expandTilde(const char *input, char *output, size_t size) {
+void expand_tilde(const char *input, char *output, size_t size) {
     if (input[0] == '~') {
         const char *home = getenv("HOME");
         if (!home) home = "";  // fallback
@@ -38,7 +38,7 @@ static int has_image_extension(const char *name) {
            !strcasecmp(ext, ".jpeg");
 }
 
-int findLatestScreenshot(char *buffer, const char *directory) {
+int find_latest_screenshot(char *buffer, const char *directory) {
     buffer[0] = '\0';  // empty output first
 
     DIR *dir = opendir(directory);

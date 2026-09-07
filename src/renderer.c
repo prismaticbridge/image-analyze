@@ -1,104 +1,78 @@
-#include <glad/gl.h>
-#include <renderer.h>
-#include <initializer.h>
 #include <constants.h>
-#include <stb_image.h>
-#include <utils.h>
+#include <decoders.h>
+#include <glad/gl.h>
+#include <initializer.h>
 #include <pthread.h>
-//#include <time.h>
+#include <renderer.h>
+#include <stdio.h>
+#include <utils.h>
+// #include <time.h>
 
-typedef struct {
-    const char* path;
-    int* width;
-    int* height;
-    int* nrChannels;
-} imageLoadArgs;
+Renderer init_renderer(const char *path) {
+  // Start decoding image in parallel with opengl init stuff
+  OutputBuffer out = {.output_buffer = NULL}; // leave other fields
+                                              // uninitialized
+  LoadArgs args = {
+      path,
+      &out,
+  };
+  pthread_t img_load_thread;
+  pthread_create(&img_load_thread, NULL, load_image_thread, &args);
 
-void* loadImageThread(void* argStruct) {
-    //clock_t start = clock();
-    imageLoadArgs* args = argStruct;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(args->path, args->width, args->height, args->nrChannels, 0);
-    if (!data) {
-        fprintf(stderr, "Error: failed to load texture\n");
-        return NULL;
-    }
-    //clock_t end = clock();
-    //double ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("Loading the image (parallel with context creation) took %f ms\n", ms);
-    return data;
+  init_glfw(3, 1);
+  // spinwait for image width and height to be known
+  while (out.width == 0 || out.height == 0) {
+  }
+  window_width = out.width;
+  window_height = out.height;
+  printf("Detected image dimensions (%d, %d)\n", window_width, window_height);
+
+  GLFWwindow *window = create_window(false);
+  init_glad();
+
+  Renderer renderer = {window,
+                       0,
+                       0,
+                       1.0f,
+                       0.0f,
+                       0.0f,
+                       window_width,
+                       window_height,
+                       {0, 0, window_width, window_height},
+                       {0, 0, window_width, window_height},
+                       false};
+
+  unsigned char *data;
+  pthread_join(img_load_thread, (void **)&data);
+
+  if (data == NULL) {
+    fprintf(stderr, "Decoding image failed, exiting");
+    exit(1);
+  }
+
+  renderer.textureId = load_texture_framebuffer(
+      (void *)out.output_buffer, &(renderer.framebufferId), window_width,
+      window_height, out.gl_format);
+  if (!(renderer.textureId)) {
+    fprintf(stderr, "Error: Loading the OpenGL texture failed!\n");
+    exit(2);
+  }
+
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.framebufferId);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+  return renderer;
 }
 
-Renderer initRenderer(const char* path) {
-    //Start decoding image in parallel with opengl init stuff
-    pthread_t imgLoadThread;
-    int fbWidth, fbHeight, nrChannels;
-    imageLoadArgs args = {path, &fbWidth, &fbHeight, &nrChannels};
-    pthread_create(&imgLoadThread, NULL, loadImageThread, &args);
+void render(Renderer *renderer) {
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //clock_t start = clock();
-    initGLFW(3, 1);
-    //clock_t end = clock();
-    //double ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("InitGLFW took %f ms\n", ms);
+  glBlitFramebuffer(renderer->fbCoords[0], renderer->fbCoords[3],
+                    renderer->fbCoords[2], renderer->fbCoords[1],
+                    renderer->screenCoords[0], renderer->screenCoords[1],
+                    renderer->screenCoords[2], renderer->screenCoords[3],
+                    GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-    //start = clock();
-    int imageWidth, imageHeight;
-    {
-        int channels;
-        stbi_info(path, &imageWidth, &imageHeight, &channels);
-        printf("Loading %s\n", path);
-        printf("Detected image dimensions imageWidth=%d imageHeight=%d\n", imageWidth, imageHeight);
-        windowWidth = imageWidth;
-        windowHeight = imageHeight;
-    }
-    //end = clock();
-    //ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("Image info took %f ms\n", ms);
-
-    //start = clock();
-    GLFWwindow* window = createWindow(false);
-    //end = clock();
-    //ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("Context and Window creation took %f ms\n", ms);
-    //start = clock();
-    initGLAD();
-    //end = clock();
-    //ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("Loading GLAD took %f ms\n", ms);
-
-    //start = clock();
-    Renderer renderer = {
-        window, 0, 0, 1.0f, 0.0f, 0.0f, imageWidth, imageHeight, {0, 0, windowWidth, windowHeight}, {0, 0, windowWidth, windowHeight}, false
-    };
-
-    unsigned char* data;
-    pthread_join(imgLoadThread, (void**)&data);
-
-    if (data == NULL) {
-        exit(3);
-    }
-
-    renderer.textureId = loadTextureFramebuffer(data, &(renderer.framebufferId), fbWidth, fbHeight, nrChannels);
-    if (!(renderer.textureId)) {
-        fprintf(stderr, "Error: Loading the OpenGL texture failed!\n");
-        exit(3);
-    }
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.framebufferId);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    //end = clock();
-    //ms = (double)(end-start) * 1000 / CLOCKS_PER_SEC;
-    //printf("End took %f ms\n", ms);
-
-    return renderer;
-}
-
-void render(Renderer* renderer) {
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glBlitFramebuffer(renderer->fbCoords[0], renderer->fbCoords[1], renderer->fbCoords[2], renderer->fbCoords[3], renderer->screenCoords[0], renderer->screenCoords[1], renderer->screenCoords[2], renderer->screenCoords[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-    glfwSwapBuffers(renderer->window);
+  glfwSwapBuffers(renderer->window);
 }

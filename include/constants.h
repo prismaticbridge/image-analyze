@@ -1,4 +1,4 @@
 #pragma once
 #include <stdint.h>
-extern uint32_t windowWidth;
-extern uint32_t windowHeight;
+extern uint32_t window_width;
+extern uint32_t window_height;
