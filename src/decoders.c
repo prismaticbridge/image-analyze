@@ -1,5 +1,4 @@
 #include <decoders.h>
-#include <libheif/heif_image.h>
 #include <spng.h>
 #include <stdio.h>
 #include <stdlib.h>
