@@ -10,15 +10,12 @@ int main(int argc, char *argv[]) {
     expand_tilde(argv[1], buffer, 256);
     filepath = buffer;
   } else if (argc == 1) {
-    fgets(buffer, 256, stdin);
-    if (buffer[0] == '\n') {
-      char expanded[256];
-      expand_tilde("~/Pictures/Screenshots", expanded, 256);
-      int success = find_latest_screenshot(buffer, expanded);
-      if (success != 0) {
-        fprintf(stderr, "Failed to load %s\n", expanded);
-        return 2;
-      }
+    char expanded[256];
+    expand_tilde("~/Pictures/Screenshots", expanded, 256);
+    int success = find_latest_screenshot(buffer, expanded);
+    if (success != 0) {
+      fprintf(stderr, "Failed to load %s\n", expanded);
+      return 2;
     }
     filepath = buffer;
   } else {
