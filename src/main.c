@@ -37,4 +37,7 @@ int main(int argc, char *argv[]) {
       render(&renderer);
     }
   }
+
+  free_image_files(renderer.image_paths, renderer.image_count);
+  return 0;
 }

@@ -54,34 +54,39 @@ void init_glad() {
   glViewport(0, 0, window_width, window_height);
 }
 
-uint32_t load_texture_framebuffer(unsigned char *data, uint32_t *write_framebuffer,
-                                uint32_t width, uint32_t height,
-                                GLenum internal_format) {
-  GLenum format;
+static GLenum texture_pixel_format(GLenum internal_format) {
   switch (internal_format) {
-  case GL_RGB8:
-    format = GL_RGB;
-    break;
   case GL_RGBA8:
   case GL_RGBA16:
-    format = GL_RGBA;
-    break;
+    return GL_RGBA;
+  case GL_RGB8:
+  default:
+    return GL_RGB;
   }
+}
 
-  uint32_t texture_id;
-  glGenTextures(1, &texture_id);
+void upload_texture(uint32_t texture_id, const unsigned char *data,
+                    uint32_t width, uint32_t height, GLenum internal_format) {
   glBindTexture(GL_TEXTURE_2D, texture_id);
 
   // Fix alignment for non-4-byte row size
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
+  glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
+               texture_pixel_format(internal_format), GL_UNSIGNED_BYTE, data);
+}
+
+uint32_t load_texture_framebuffer(unsigned char *data, uint32_t *write_framebuffer,
+                                uint32_t width, uint32_t height,
+                                GLenum internal_format) {
+  uint32_t texture_id;
+  glGenTextures(1, &texture_id);
+  upload_texture(texture_id, data, width, height, internal_format);
+
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, format,
-               GL_UNSIGNED_BYTE, data);
 
   glGenFramebuffers(1, write_framebuffer);
   glBindFramebuffer(GL_FRAMEBUFFER, *write_framebuffer);

@@ -12,6 +12,10 @@ typedef struct {
   uint32_t screen_coords[4];
   uint32_t fb_coords[4];
   bool state_changed;
+  char **image_paths;
+  int image_count;
+  int image_index;
 } Renderer;
 Renderer init_renderer(const char *path);
 void render(Renderer *renderer);
+void renderer_navigate(Renderer *renderer, int direction);

@@ -2,7 +2,6 @@
 #include <constants.h>
 #include <inputHandler.h>
 #include <utils.h>
-// #include <stdio.h>
 
 static user_pointer ptr;
 
@@ -36,14 +35,30 @@ void scroll_callback(GLFWwindow *window, double x_offset, double y_offset) {
   renderer->state_changed = true;
 }
 
+void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                  int mods) {
+  if (action != GLFW_PRESS)
+    return;
+
+  user_pointer *ptr = glfwGetWindowUserPointer(window);
+  if (key == GLFW_KEY_RIGHT) {
+    renderer_navigate(ptr->renderer, 1);
+  } else if (key == GLFW_KEY_LEFT) {
+    renderer_navigate(ptr->renderer, -1);
+  }
+}
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 
-  window_width = width;
-  window_height = height;
-
   user_pointer *ptr = glfwGetWindowUserPointer(window);
   Renderer *renderer = ptr->renderer;
+
+  renderer->x_offset += (float)(width - (int)window_width) / 2;
+  renderer->y_offset += (float)(height - (int)window_height) / 2;
+
+  window_width = width;
+  window_height = height;
 
   renderer->state_changed = true;
 }
@@ -73,4 +88,5 @@ void init_input(Renderer *renderer) {
   glfwSetCursorPosCallback(renderer->window, mouse_position_callback);
   glfwSetScrollCallback(renderer->window, scroll_callback);
   glfwSetFramebufferSizeCallback(renderer->window, framebuffer_size_callback);
+  glfwSetKeyCallback(renderer->window, key_callback);
 }

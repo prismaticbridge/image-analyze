@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <limits.h>
@@ -82,5 +83,71 @@ int find_latest_screenshot(char *buffer, const char *directory) {
 
     strcpy(buffer, latest_path);
     return 0;       // Success
+}
+
+static int compare_paths(const void *a, const void *b) {
+    return strcmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+char **list_image_files(const char *filepath, int *count) {
+    *count = 0;
+
+    char directory[PATH_MAX];
+    snprintf(directory, sizeof(directory), "%s", filepath);
+
+    char *slash = strrchr(directory, '/');
+    if (slash == NULL) {
+        strcpy(directory, ".");
+    } else if (slash == directory) {
+        slash[1] = '\0';  // keep root "/"
+    } else {
+        *slash = '\0';
+    }
+
+    DIR *dir = opendir(directory);
+    if (dir == NULL)
+        return NULL;
+
+    char **paths = NULL;
+    int capacity = 0;
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+            continue;
+
+        if (!has_image_extension(entry->d_name))
+            continue;
+
+        char path[PATH_MAX];
+        if (!strcmp(directory, "."))
+            snprintf(path, sizeof(path), "%s", entry->d_name);
+        else
+            snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
+
+        struct stat st;
+        if (stat(path, &st) == -1 || !S_ISREG(st.st_mode))
+            continue;
+
+        if (*count == capacity) {
+            capacity = (capacity == 0) ? 16 : capacity * 2;
+            paths = realloc(paths, (size_t)capacity * sizeof(char *));
+        }
+        paths[*count] = strdup(path);
+        (*count)++;
+    }
+
+    closedir(dir);
+
+    if (*count > 1)
+        qsort(paths, (size_t)*count, sizeof(char *), compare_paths);
+
+    return paths;
+}
+
+void free_image_files(char **paths, int count) {
+    for (int i = 0; i < count; i++)
+        free(paths[i]);
+    free(paths);
 }
 

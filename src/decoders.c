@@ -72,6 +72,7 @@ void *decode_spng(FILE *fp, OutputBuffer *out) {
   fclose(fp);
 
   out->gl_format = spng_to_gl_format(format);
+  out->type = IMAGE_PNG;
   print_gl_format_info(out->gl_format);
   spng_ctx_free(ctx);
   return out;
